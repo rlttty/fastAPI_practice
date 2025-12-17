@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from main import app, get_db, Base, Recipe
+from main import Base, Recipe, app, get_db
 
 # Тестовая БД — в памяти, чтобы не засорять диск и чтобы тесты были быстрыми
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -59,7 +59,7 @@ def test_create_recipe(client: TestClient):
         "name": "Борщ",
         "cooking_time": 90,
         "ingredients": "свекла, капуста, мясо, картофель",
-        "description": "Классический украинский борщ."
+        "description": "Классический украинский борщ.",
     }
 
     response = client.post("/recipes", json=recipe_data)
@@ -110,8 +110,8 @@ def test_get_recipes_list_after_create(client: TestClient):
     assert len(recipes) == 3
     # Все имеют views = 0, поэтому сортировка по cooking_time ASC
     assert recipes[0]["name"] == "Салат Цезарь"  # 20 мин
-    assert recipes[1]["name"] == "Пицца"         # 30 мин
-    assert recipes[2]["name"] == "Борщ"          # 90 мин
+    assert recipes[1]["name"] == "Пицца"  # 30 мин
+    assert recipes[2]["name"] == "Борщ"  # 90 мин
 
 
 def test_get_recipe_detail_and_views_increment(client: TestClient):
@@ -126,7 +126,9 @@ def test_get_recipe_detail_and_views_increment(client: TestClient):
             "description": "Простой омлет на завтрак.",
         },
     )
-    recipe_id = create_response.json()["name"]  # нет, лучше получить из списка или запомнить
+    recipe_id = create_response.json()[
+        "name"
+    ]  # нет, лучше получить из списка или запомнить
 
     # Получим список, найдём ID рецепта с именем "Омлет"
     list_response = client.get("/recipes")
@@ -156,6 +158,8 @@ def test_get_recipe_detail_and_views_increment(client: TestClient):
     # Чтобы избежать влияния других тестов — лучше искать по имени
 
     list_resp = client.get("/recipes")
-    recipe_in_list = next(r for r in list_resp.json() if r["name"] == "Тестовый рецепт для просмотров")
+    recipe_in_list = next(
+        r for r in list_resp.json() if r["name"] == "Тестовый рецепт для просмотров"
+    )
     initial_views = recipe_in_list["views"]
     assert initial_views == 0
