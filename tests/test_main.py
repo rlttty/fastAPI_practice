@@ -31,7 +31,7 @@ async def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
-@pytest.fixture(name="client", scope="module")
+@pytest.fixture(name="client", scope="function")
 def test_client():
     async def init_models():
         async with test_engine.begin() as conn:
@@ -47,7 +47,6 @@ def test_client():
             await conn.run_sync(Base.metadata.drop_all)
 
     asyncio.run(drop_models())
-    app.dependency_overrides.clear()
 
 
 def test_create_recipe(client: TestClient):
