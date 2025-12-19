@@ -8,6 +8,12 @@ from sqlalchemy.orm import sessionmaker
 
 from main import Base, app, get_db
 
+# Константы для тестов — полностью убираем "магические числа"
+EXPECTED_RECIPES_AFTER_SORT_TEST = 4
+INITIAL_VIEWS = 0
+TEST_COOKING_TIME_FOR_VIEWS = 15
+BORSHCH_COOKING_TIME = 90
+
 # Тестовая БД в памяти
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -27,7 +33,6 @@ app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(name="client", scope="module")
 def test_client():
-    # Создаём таблицы один раз
     async def init_models():
         async with test_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -37,7 +42,6 @@ def test_client():
     with TestClient(app) as c:
         yield c
 
-    # Очистка после всех тестов
     async def drop_models():
         async with test_engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -47,10 +51,10 @@ def test_client():
 
 
 def test_create_recipe(client: TestClient):
-    """Тест создания рецепта"""
+    """Тест создания одного рецепта"""
     recipe_data = {
         "name": "Борщ",
-        "cooking_time": 90,
+        "cooking_time": BORSHCH_COOKING_TIME,
         "ingredients": "свекла, капуста, мясо, картофель",
         "description": "Классический украинский борщ.",
     }
@@ -60,83 +64,80 @@ def test_create_recipe(client: TestClient):
 
     data = response.json()
     assert data["name"] == "Борщ"
-    assert data["cooking_time"] == 90
+    assert data["cooking_time"] == BORSHCH_COOKING_TIME
     assert data["ingredients"] == "свекла, капуста, мясо, картофель"
     assert data["description"] == "Классический украинский борщ."
 
 
 def test_get_recipes_list_empty_at_start(client: TestClient):
-    """Изначально список пуст"""
+    """Список рецептов изначально пуст (перед созданием)"""
     response = client.get("/recipes")
     assert response.status_code == HTTPStatus.OK
     assert response.json() == []
 
 
 def test_get_recipes_list_sorting_and_multiple_creations(client: TestClient):
-    """Проверка сортировки: сначала по views DESC, потом по cooking_time ASC"""
-    # Создаём три рецепта с разным временем приготовления
-    recipes_to_create = [
+    """Проверка сортировки списка: views DESC → cooking_time ASC"""
+    # Создаём три дополнительных рецепта
+    additional_recipes = [
         {
             "name": "Пицца",
             "cooking_time": 30,
             "ingredients": "тесто, сыр",
-            "description": "...",
+            "description": "Простая пицца.",
         },
         {
             "name": "Салат Цезарь",
             "cooking_time": 20,
             "ingredients": "курица, салат",
-            "description": "...",
+            "description": "Классический Цезарь.",
         },
         {
             "name": "Омлет",
             "cooking_time": 10,
             "ingredients": "яйца, молоко",
-            "description": "...",
+            "description": "Быстрый завтрак.",
         },
     ]
 
-    for rec in recipes_to_create:
-        response = client.post("/recipes", json=rec)
+    for recipe in additional_recipes:
+        response = client.post("/recipes", json=recipe)
         assert response.status_code == HTTPStatus.CREATED
 
-    # Теперь в списке должно быть 4 рецепта (Борщ из первого теста + эти три)
+    # Всего должно быть 4 рецепта (Борщ + 3 новых)
     response = client.get("/recipes")
     assert response.status_code == HTTPStatus.OK
     recipes = response.json()
 
-    assert len(recipes) == 4
+    assert len(recipes) == EXPECTED_RECIPES_AFTER_SORT_TEST
 
-    # Все views = 0 → сортировка только по cooking_time ASC
+    # При views = 0 у всех — сортировка только по cooking_time ASC
     expected_order = ["Омлет", "Салат Цезарь", "Пицца", "Борщ"]
-    actual_names = [r["name"] for r in recipes]
+    actual_names = [recipe["name"] for recipe in recipes]
     assert actual_names == expected_order
 
 
-def test_recipe_detail_views_increment(client: TestClient):
-    """Проверка инкремента просмотров при детальном просмотре"""
-    # Создаём новый уникальный рецепт
+def test_recipe_appears_in_list_after_creation(client: TestClient):
+    """Проверка, что новый рецепт появляется в списке и имеет views = 0"""
     response = client.post(
         "/recipes",
         json={
             "name": "Тестовый рецепт для views",
-            "cooking_time": 15,
+            "cooking_time": TEST_COOKING_TIME_FOR_VIEWS,
             "ingredients": "ингредиент1, ингредиент2",
-            "description": "Для проверки счётчика просмотров",
+            "description": "Для проверки появления в списке",
         },
     )
     assert response.status_code == HTTPStatus.CREATED
 
-    # Находим его в списке по имени и проверяем начальное количество просмотров
     list_response = client.get("/recipes")
-    recipes = list_response.json()
-    test_recipe = next(r for r in recipes if r["name"] == "Тестовый рецепт для views")
-    assert test_recipe["views"] == 0
+    assert list_response.status_code == HTTPStatus.OK
 
-    # Первый просмотр детали — views должен стать 1
-    # Поскольку ID нет в ответе, ищем рецепт по имени и эмулируем просмотр (но detail требует ID)
-    # Проблема: без ID в API мы не можем вызвать /recipes/{id}
-    # Поэтому пока проверяем только создание и список.
-    # Если добавишь id в схемы — сможешь дописать полный тест.
-    # А пока оставляем только проверку, что рецепт появился
-    assert test_recipe["cooking_time"] == 15
+    recipes = list_response.json()
+    test_recipe = next(
+        (r for r in recipes if r["name"] == "Тестовый рецепт для views"),
+        None,
+    )
+    assert test_recipe is not None
+    assert test_recipe["views"] == INITIAL_VIEWS
+    assert test_recipe["cooking_time"] == TEST_COOKING_TIME_FOR_VIEWS
