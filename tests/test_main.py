@@ -1,15 +1,15 @@
 import asyncio
-from http import HTTPStatus
 
 import pytest
 from fastapi.testclient import TestClient
+from http import HTTPStatus
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from main import Base, app, get_db
+from main import app, Base, get_db
 
-# Константы для тестов — полностью убираем "магические числа"
-EXPECTED_RECIPES_AFTER_SORT_TEST = 4
+# Константы для тестов
+EXPECTED_RECIPES_IN_SORT_TEST = 3
 INITIAL_VIEWS = 0
 TEST_COOKING_TIME_FOR_VIEWS = 15
 BORSHCH_COOKING_TIME = 90
@@ -18,9 +18,7 @@ BORSHCH_COOKING_TIME = 90
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-TestingSessionLocal = sessionmaker(
-    bind=test_engine, class_=AsyncSession, expire_on_commit=False
-)
+TestingSessionLocal = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def override_get_db():
@@ -69,7 +67,7 @@ def test_create_recipe(client: TestClient):
 
 
 def test_get_recipes_list_empty_at_start(client: TestClient):
-    """Список рецептов изначально пуст (перед созданием)"""
+    """Список рецептов изначально пуст"""
     response = client.get("/recipes")
     assert response.status_code == HTTPStatus.OK
     assert response.json() == []
@@ -77,7 +75,7 @@ def test_get_recipes_list_empty_at_start(client: TestClient):
 
 def test_get_recipes_list_sorting_and_multiple_creations(client: TestClient):
     """Проверка сортировки списка: views DESC → cooking_time ASC"""
-    # Создаём три дополнительных рецепта
+    # Создаём три рецепта
     additional_recipes = [
         {
             "name": "Пицца",
@@ -103,16 +101,15 @@ def test_get_recipes_list_sorting_and_multiple_creations(client: TestClient):
         response = client.post("/recipes", json=recipe)
         assert response.status_code == HTTPStatus.CREATED
 
-    # Всего должно быть 4 рецепта (Борщ + 3 новых)
     response = client.get("/recipes")
     assert response.status_code == HTTPStatus.OK
     recipes = response.json()
 
-    assert len(recipes) == EXPECTED_RECIPES_AFTER_SORT_TEST
+    assert len(recipes) == EXPECTED_RECIPES_IN_SORT_TEST
 
-    # При views = 0 у всех — сортировка только по cooking_time ASC
-    expected_order = ["Омлет", "Салат Цезарь", "Пицца", "Борщ"]
-    actual_names = [recipe["name"] for recipe in recipes]
+    # Сортировка по cooking_time ASC (все views = 0)
+    expected_order = ["Омлет", "Салат Цезарь", "Пицца"]
+    actual_names = [r["name"] for r in recipes]
     assert actual_names == expected_order
 
 
