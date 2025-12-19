@@ -1,12 +1,12 @@
 import asyncio
+from http import HTTPStatus
 
 import pytest
 from fastapi.testclient import TestClient
-from http import HTTPStatus
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from main import app, Base, get_db
+from main import Base, app, get_db
 
 # Константы для тестов
 EXPECTED_RECIPES_IN_SORT_TEST = 3
@@ -18,7 +18,9 @@ BORSHCH_COOKING_TIME = 90
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-TestingSessionLocal = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+TestingSessionLocal = sessionmaker(
+    bind=test_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 async def override_get_db():
