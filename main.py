@@ -1,9 +1,7 @@
-import asyncio
-from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, Text, create_engine
+from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -98,7 +96,7 @@ async def startup():
 
 @app.get(
     "/recipes",
-    response_model=List[RecipeListItem],
+    response_model=list[RecipeListItem],
     summary="Получить список всех рецептов",
     description="Возвращает список всех рецептов, отсортированный по популярности (просмотры по убыванию), затем по времени приготовления по возрастанию в случае равенства. Этот эндпоинт питает основной экран с таблицей рецептов.",
 )

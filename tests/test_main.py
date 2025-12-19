@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from main import Base, Recipe, app, get_db
+from main import Base, app, get_db
 
 # Тестовая БД — в памяти, чтобы не засорять диск и чтобы тесты были быстрыми
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

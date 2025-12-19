@@ -1,17 +1,10 @@
 name: CI
 
-# Триггеры — здесь явно и просто, без "**"
 on:
   push:
-    branches:
-      - main
-      - master
-      - '**'  # все остальные ветки
+    branches: [ "**" ]
   pull_request:
-    branches:
-      - main
-      - master
-      - '**'
+    branches: [ "**" ]
 
 jobs:
   lint-and-test:
@@ -23,20 +16,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'  # измени на свою, если нужно (3.10, 3.12 и т.д.)
+          python-version: '3.11'  # твоя версия
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install black isort flake8 mypy pytest httpx
+          pip install ruff pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Lint code
+      - name: Lint with ruff
         run: |
-          black --check .
-          isort --check-only .
-          flake8 .
-          mypy .
+          ruff check .          # проверка (если ошибки — fail)
+          ruff format --check . # проверка форматирования
 
       - name: Run tests
         run: |
